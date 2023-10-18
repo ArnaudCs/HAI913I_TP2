@@ -184,7 +184,10 @@ public class CodeAnalyser {
 	}
 	
 	public static void displayCouplingMatrix(double[][] couplingMatrix, Set<String> classNamesSet) {
-		
+		System.out.println("\nTableau de couplage (sans méthodes provenants de Java):");
+	    graphCmd += "==========================" + "\n";
+	    graphCmd += "|   Tableau de couplage  |" + "\n";
+	    graphCmd += "==========================" + "\n";
 	    int numClasses = classNamesSet.size();
 	    String[] classNames = classNamesSet.toArray(new String[classNamesSet.size()]);
 	    // Print the header row with class names

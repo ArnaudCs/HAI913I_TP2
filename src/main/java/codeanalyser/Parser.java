@@ -16,7 +16,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class Parser {
 
-	public static final String projectPath = "/home/e20190003865/Bureau/test_coupling/";
+	public static final String projectPath = "/home/gecko/Desktop/test_coupling/";
 	public static String projectSourcePath;
 	public static final String jrePath = "";
 	
