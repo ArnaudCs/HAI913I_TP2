@@ -46,7 +46,13 @@ public class CodeAnalyser {
 		
 		
 		displayCallGraph(callGraph);
-		displayCouplingMatrix(calculateCoupling(callGraph), callGraph.keySet());
+		
+		double[][] couplingMatrix = calculateCoupling(callGraph);
+		displayCouplingMatrix(couplingMatrix, callGraph.keySet());
+		
+		
+        double[][] weightedGraph = calculateWeightedGraph(couplingMatrix);
+        
 		
 	}
 
@@ -207,7 +213,28 @@ public class CodeAnalyser {
 	    }
 	}
 
+    private static double[][] calculateWeightedGraph(double[][] couplingMatrix) {
+        int numClasses = couplingMatrix.length;
+        double[][] weightedGraph = new double[numClasses][numClasses];
 
+        for (int i = 0; i < numClasses; i++) {
+            for (int j = 0; j < numClasses; j++) {
+                if (i == j) {
+                    // No coupling to itself
+                    weightedGraph[i][j] = 0.0;
+                } else {
+                    // Calculate coupling strength based on the coupling matrix
+                    double totalCoupling = 0.0;
+                    for (int k = 0; k < numClasses; k++) {
+                        totalCoupling += couplingMatrix[i][k] + couplingMatrix[j][k];
+                    }
+                    weightedGraph[i][j] = totalCoupling / (2 * numClasses);
+                }
+            }
+        }
+
+        return weightedGraph;
+    }
 
 
 }
