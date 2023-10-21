@@ -19,7 +19,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import net.miginfocom.swing.MigLayout;
 
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
@@ -29,6 +28,9 @@ import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PiePlot;
 import org.jfree.data.general.DefaultPieDataset;
+
+import net.miginfocom.swing.MigLayout;
+
 import javax.swing.JFileChooser;
 
 public class CodeAnalyserGUI {

@@ -3,7 +3,9 @@ package codeanalyser;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,7 +21,7 @@ public class CodeAnalyser {
 	private static Map<String, Map<String, Map<String, String>>> callGraph;
 	private static String cmd;
 	private static String graphCmd;
-		
+	private static Map<Integer, List<String>> clusterOrderTree = new HashMap<Integer, List<String>>();		
 	
 	public String getCmd() {return cmd;}
 	public String getGraphCmd() {return graphCmd;}
@@ -53,7 +55,12 @@ public class CodeAnalyser {
 		
         double[][] weightedGraph = calculateWeightedGraph(couplingMatrix);
         
-		
+        List<List<String>> clusters = hierarchicalClustering(callGraph);
+
+        for (int i = 0; i < clusters.size(); i++) {
+            System.out.println("Cluster " + (i + 1) + ": " + clusters.get(i));
+        }
+        System.out.println("Ordre de clustering : " + clusterOrderTree);
 	}
 
 	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {
@@ -93,7 +100,6 @@ public class CodeAnalyser {
 	        }
 	    }
 	}
-
 
 	public static Map<String, Map<String, Map<String, String>>> buildCallGraph(CompilationUnit parse) {
 	    ClassDeclarationVisitor classVisitor = new ClassDeclarationVisitor();
@@ -235,6 +241,88 @@ public class CodeAnalyser {
 
         return weightedGraph;
     }
+    
+    //Clustering dendro
+    
+    public static List<List<String>> hierarchicalClustering(Map<String, Map<String, Map<String, String>>> callGraph) {
+        // Récupérer la liste des classes
+        String[] classNames = callGraph.keySet().toArray(new String[0]);
+        int numClasses = classNames.length;
 
+        List<List<String>> clusters = new ArrayList<List<String>>();
+        
+        // Initialisation : chaque classe est un cluster
+        for (String className : classNames) {
+            List<String> initialCluster = new ArrayList<String>();
+            initialCluster.add(className);
+            clusters.add(initialCluster);
+        }
 
+        while (clusters.size() > 1) {
+            // Trouver les deux clusters les plus couplés
+            int cluster1Index = -1;
+            int cluster2Index = -1;
+            double minCoupling = Double.MAX_VALUE;
+
+            for (int i = 0; i < clusters.size(); i++) {
+                for (int j = i + 1; j < clusters.size(); j++) {
+                	//On cherche les clusters les plus couplés pour commencer l'algorithme dendro
+                    double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), callGraph);
+                    if (coupling < minCoupling) {
+                        minCoupling = coupling;
+                        cluster1Index = i;
+                        cluster2Index = j;
+                    }
+                }
+            }
+
+            // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
+            if (cluster1Index != -1 && cluster2Index != -1) {
+                // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
+                List<String> mergedCluster = mergeClusters(clusters.get(cluster1Index), clusters.get(cluster2Index));
+                clusters.remove(cluster1Index);
+                if (cluster2Index > cluster1Index) {
+                    cluster2Index--; // Décrémenter l'index si nécessaire
+                }
+                clusters.remove(cluster2Index);
+                clusters.add(mergedCluster);
+                clusterOrderTree.put(clusters.size(), mergedCluster);
+            }
+        }
+
+        return clusters;
+    }
+    
+    public static List<String> mergeClusters(List<String> cluster1, List<String> cluster2) {
+        List<String> mergedCluster = new ArrayList<String>();
+        mergedCluster.addAll(cluster1);
+        mergedCluster.addAll(cluster2);
+        return mergedCluster;
+    }
+    
+    public static double calculateAverageCoupling(List<String> cluster1, List<String> cluster2, Map<String, Map<String, Map<String, String>>> callGraph) {
+        int totalCouplingCount = 0;
+        int totalRelationsCount = 0;
+        for (String className1 : cluster1) {
+            for (String className2 : cluster2) {
+                if (!className1.equals(className2)) {
+                    Map<String, Map<String, String>> class1Methods = callGraph.get(className1);
+                    Map<String, Map<String, String>> class2Methods = callGraph.get(className2);
+                    int couplingCount = 0;
+                    // Compter le nombre d'appels de A à B et de B à A
+                    for (String methodA : class1Methods.keySet()) {
+                        for (String methodB : class2Methods.keySet()) {
+                            if (isCoupled(class1Methods.get(methodA), className2) || isCoupled(class2Methods.get(methodB), className1)) {
+                                couplingCount++;
+                            }
+                        }
+                    }
+                    totalCouplingCount += couplingCount;
+                    totalRelationsCount += class1Methods.size() + class2Methods.size();
+                }
+            }
+        }
+        return (double) totalCouplingCount / totalRelationsCount;
+    }
 }
+
