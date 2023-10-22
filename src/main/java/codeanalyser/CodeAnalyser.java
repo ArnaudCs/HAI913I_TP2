@@ -56,10 +56,6 @@ public class CodeAnalyser {
         double[][] weightedGraph = calculateWeightedGraph(couplingMatrix);
         
         List<List<String>> clusters = hierarchicalClustering(callGraph);
-
-        for (int i = 0; i < clusters.size(); i++) {
-            System.out.println("Cluster " + (i + 1) + ": " + clusters.get(i));
-        }
         System.out.println("Ordre de clustering : " + clusterOrderTree);
 	}
 
@@ -262,13 +258,14 @@ public class CodeAnalyser {
             // Trouver les deux clusters les plus couplés
             int cluster1Index = -1;
             int cluster2Index = -1;
-            double minCoupling = Double.MAX_VALUE;
+            double minCoupling = Double.MIN_VALUE;
 
             for (int i = 0; i < clusters.size(); i++) {
                 for (int j = i + 1; j < clusters.size(); j++) {
                 	//On cherche les clusters les plus couplés pour commencer l'algorithme dendro
                     double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), callGraph);
-                    if (coupling < minCoupling) {
+                    //System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
+                    if (coupling > minCoupling) {
                         minCoupling = coupling;
                         cluster1Index = i;
                         cluster2Index = j;
