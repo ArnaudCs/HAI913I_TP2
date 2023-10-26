@@ -21,7 +21,7 @@ public class CodeAnalyser {
 	private static Map<String, Map<String, Map<String, String>>> callGraph;
 	private static String cmd;
 	private static String graphCmd;
-	private static Map<Integer, List<String>> clusterOrderTree = new HashMap<Integer, List<String>>();		
+	private static Map<List<Double>, List<String>> clusterOrderTree = new HashMap<List<Double>, List<String>>();		
 	
 	public String getCmd() {return cmd;}
 	public String getGraphCmd() {return graphCmd;}
@@ -57,6 +57,8 @@ public class CodeAnalyser {
         
         List<List<String>> clusters = hierarchicalClustering(callGraph);
         System.out.println("Ordre de clustering : " + clusterOrderTree);
+        
+        System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.5));
 	}
 
 	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {
@@ -283,7 +285,10 @@ public class CodeAnalyser {
                 }
                 clusters.remove(cluster2Index);
                 clusters.add(mergedCluster);
-                clusterOrderTree.put(clusters.size(), mergedCluster);
+                List<Double> listIndexCoupling = new ArrayList<Double>();
+                listIndexCoupling.add((double) clusters.size());
+                listIndexCoupling.add(minCoupling);
+                clusterOrderTree.put(listIndexCoupling, mergedCluster);
             }
         }
 
@@ -320,6 +325,17 @@ public class CodeAnalyser {
             }
         }
         return (double) totalCouplingCount / totalRelationsCount;
+    }
+    
+    public static Map<List<Double>, List<String>> identifyModules(Map<List<Double>, List<String>> clusterMap, Double CP) {
+    	Map<List<Double>, List<String>> applications = new HashMap<List<Double>, List<String>>();
+    	
+    	for (List<Double> couplingValue: clusterMap.keySet()) {
+			if(couplingValue.get(1) >= CP) {
+				applications.put(couplingValue, clusterMap.get(couplingValue));
+			}
+		}
+    	return applications;
     }
 }
 
