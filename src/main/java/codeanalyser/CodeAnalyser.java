@@ -1,12 +1,14 @@
 package codeanalyser;
 
-import java.io.File;
+import java.io.File;import java.text.DecimalFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
@@ -59,6 +61,8 @@ public class CodeAnalyser {
         System.out.println("Ordre de clustering : " + clusterOrderTree);
         
         System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.5));
+        System.out.println("\nIdentification de modules avec contraintes (M/2) =========================\n");
+        System.out.println("Applications du projet (Avec CP = 0,5) : "+ identifyModulesMin(clusterOrderTree, 0.5, couplingMatrix.length));
 	}
 
 	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {
@@ -287,6 +291,8 @@ public class CodeAnalyser {
                 clusters.add(mergedCluster);
                 List<Double> listIndexCoupling = new ArrayList<Double>();
                 listIndexCoupling.add((double) clusters.size());
+                // Limiter à deux chiffres après la virgule
+                minCoupling = Math.round(minCoupling * 100.0) / 100.0;
                 listIndexCoupling.add(minCoupling);
                 clusterOrderTree.put(listIndexCoupling, mergedCluster);
             }
@@ -336,6 +342,31 @@ public class CodeAnalyser {
 			}
 		}
     	return applications;
+    }
+    
+    public static Map<List<Double>, List<String>> identifyModulesMin(Map<List<Double>, List<String>> clusterMap, Double CP, int classCount) {
+        List<Map.Entry<List<Double>, List<String>>> sortedEntries = new ArrayList<Entry<List<Double>, List<String>>>(clusterMap.entrySet());
+
+        // Trier la liste d'entrées en utilisant Collections.sort() avec un comparateur spécifique
+        Collections.sort(sortedEntries, new Comparator<Map.Entry<List<Double>, List<String>>>() {
+            public int compare(Map.Entry<List<Double>, List<String>> entry1, Map.Entry<List<Double>, List<String>> entry2) {
+                Double secondElement1 = entry1.getKey().get(1);
+                Double secondElement2 = entry2.getKey().get(1);
+                return Double.compare(secondElement1, secondElement2); // Trie en ordre croissant
+            }
+        });
+        
+        Map<List<Double>, List<String>> applications = new HashMap<List<Double>, List<String>>();
+
+        // Sélectionner les M premiers éléments de la liste triée
+        for (int i = 0; i <= classCount/2 && i < sortedEntries.size(); i++) {
+            Map.Entry<List<Double>, List<String>> entry = sortedEntries.get(i);
+            if (entry.getKey().get(1) >= CP) {
+                applications.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return applications;
     }
 }
 
