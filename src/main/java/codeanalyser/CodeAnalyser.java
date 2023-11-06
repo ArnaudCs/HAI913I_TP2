@@ -70,6 +70,7 @@ public class CodeAnalyser {
 	    graphCmd += "==========================" + "\n";
 	    graphCmd += "|      Graphe d'appel      |" + "\n";
 	    graphCmd += "==========================" + "\n";
+	    
 
 	    for (Map.Entry<String, Map<String, Map<String, String>>> classEntry : callGraph.entrySet()) {
 	        String className = classEntry.getKey();
@@ -101,6 +102,7 @@ public class CodeAnalyser {
 	            }
 	        }
 	    }
+	    
 	}
 
 	public static Map<String, Map<String, Map<String, String>>> buildCallGraph(CompilationUnit parse) {
@@ -149,6 +151,7 @@ public class CodeAnalyser {
 
 	    // Initialiser la matrice de couplage
 	    double[][] couplingMatrix = new double[numClasses][numClasses];
+	    int totalRelation = 0;
 
 	    // Remplir la matrice de couplage
 	    for (int i = 0; i < numClasses; i++) {
@@ -169,19 +172,29 @@ public class CodeAnalyser {
 	                for (String methodA : classAMethods.keySet()) {
 	                    for (String methodB : classBMethods.keySet()) {
 //	                    	System.out.println(methodA+"-"+methodB);
-	                        if (isCoupled(classAMethods.get(methodA), classNameB) || isCoupled(classBMethods.get(methodB), classNameA)) {
+	                        if (isCoupled(classAMethods.get(methodA), classNameB)) {
 	                            couplingCount++;
 	                        }
 	                    }
 	                }
+	                
+	                totalRelation = totalRelation + couplingCount;
 
 	                // Calculer le couplage relatif
-	                int totalRelations = classAMethods.size() + classBMethods.size();
-	                double couplingRatio = (double) couplingCount / totalRelations;
+	                //int totalRelations = classAMethods.size() + classBMethods.size();
+	                //double couplingRatio = (double) couplingCount / totalRelation;
 
-	                couplingMatrix[i][j] = couplingRatio;
+	                couplingMatrix[i][j] = couplingCount;
 	            }
 	        }
+	    }
+	    
+	    System.out.println(totalRelation);
+	    
+	    for(int i = 0; i < couplingMatrix.length; i++) {
+	    	for(int j = 0; j < couplingMatrix.length; j++) {
+	    		couplingMatrix[i][j] = couplingMatrix[i][j]/totalRelation;
+	    	}
 	    }
 
 	    return couplingMatrix;
@@ -215,7 +228,7 @@ public class CodeAnalyser {
 	    for (int i = 0; i < numClasses; i++) {
 	        System.out.print(classNames[i] + "\t");
 	        for (int j = 0; j < numClasses; j++) {
-	            System.out.printf("%.2f\t", couplingMatrix[i][j]);
+	            System.out.printf("%.3f\t", couplingMatrix[i][j]);
 	        }
 	        System.out.println();
 	    }
