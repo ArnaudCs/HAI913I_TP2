@@ -24,6 +24,7 @@ public class CodeAnalyser {
 	private static String cmd;
 	private static String graphCmd;
 	private static Map<List<Double>, List<String>> clusterOrderTree = new HashMap<List<Double>, List<String>>();		
+    static int totalRelation = 0;
 	
 	public String getCmd() {return cmd;}
 	public String getGraphCmd() {return graphCmd;}
@@ -60,9 +61,9 @@ public class CodeAnalyser {
         List<List<String>> clusters = hierarchicalClustering(callGraph);
         System.out.println("Ordre de clustering : " + clusterOrderTree);
         
-        System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.5));
-        System.out.println("\nIdentification de modules avec contraintes (M/2) =========================\n");
-        System.out.println("Applications du projet (Avec CP = 0,5) : "+ identifyModulesMin(clusterOrderTree, 0.5, couplingMatrix.length));
+        System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.1));
+        //System.out.println("\nIdentification de modules avec contraintes (M/2) =========================\n");
+        System.out.println("Applications du projet (Avec CP = 0,5) : "+ identifyModulesMin(clusterOrderTree, 0.1, couplingMatrix.length));
 	}
 
 	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {
@@ -151,7 +152,6 @@ public class CodeAnalyser {
 
 	    // Initialiser la matrice de couplage
 	    double[][] couplingMatrix = new double[numClasses][numClasses];
-	    int totalRelation = 0;
 
 	    // Remplir la matrice de couplage
 	    for (int i = 0; i < numClasses; i++) {
@@ -178,9 +178,9 @@ public class CodeAnalyser {
 	                    }
 	                }
 	                
-	                totalRelation = totalRelation + couplingCount;
+	                totalRelation += couplingCount;
 
-	                // Calculer le couplage relatif
+	                //Calculer le couplage relatif
 	                //int totalRelations = classAMethods.size() + classBMethods.size();
 	                //double couplingRatio = (double) couplingCount / totalRelation;
 
@@ -191,11 +191,16 @@ public class CodeAnalyser {
 	    
 	    System.out.println(totalRelation);
 	    
+	    //float totalCoupling = 0;
+	    
 	    for(int i = 0; i < couplingMatrix.length; i++) {
 	    	for(int j = 0; j < couplingMatrix.length; j++) {
 	    		couplingMatrix[i][j] = couplingMatrix[i][j]/totalRelation;
+	    		//totalCoupling += couplingMatrix[i][j];
 	    	}
 	    }
+	    
+	    //System.out.println(totalCoupling);
 
 	    return couplingMatrix;
 	}
@@ -283,7 +288,7 @@ public class CodeAnalyser {
                 for (int j = i + 1; j < clusters.size(); j++) {
                 	//On cherche les clusters les plus couplés pour commencer l'algorithme dendro
                     double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), callGraph);
-                    //System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
+                    System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
                     if (coupling > minCoupling) {
                         minCoupling = coupling;
                         cluster1Index = i;
@@ -324,6 +329,7 @@ public class CodeAnalyser {
     public static double calculateAverageCoupling(List<String> cluster1, List<String> cluster2, Map<String, Map<String, Map<String, String>>> callGraph) {
         int totalCouplingCount = 0;
         int totalRelationsCount = 0;
+        int totalRelations = 0;
         for (String className1 : cluster1) {
             for (String className2 : cluster2) {
                 if (!className1.equals(className2)) {
@@ -339,11 +345,12 @@ public class CodeAnalyser {
                         }
                     }
                     totalCouplingCount += couplingCount;
-                    totalRelationsCount += class1Methods.size() + class2Methods.size();
+                    totalRelationsCount ++;
                 }
             }
         }
-        return (double) totalCouplingCount / totalRelationsCount;
+        
+        return (( (double) totalCouplingCount / (double) totalRelationsCount) / (double) totalRelation);
     }
     
     public static Map<List<Double>, List<String>> identifyModules(Map<List<Double>, List<String>> clusterMap, Double CP) {
@@ -365,11 +372,12 @@ public class CodeAnalyser {
             public int compare(Map.Entry<List<Double>, List<String>> entry1, Map.Entry<List<Double>, List<String>> entry2) {
                 Double secondElement1 = entry1.getKey().get(1);
                 Double secondElement2 = entry2.getKey().get(1);
-                return Double.compare(secondElement1, secondElement2); // Trie en ordre croissant
+                return Double.compare(secondElement2, secondElement1); // Trie en ordre croissant
             }
         });
         
         Map<List<Double>, List<String>> applications = new HashMap<List<Double>, List<String>>();
+
 
         // Sélectionner les M premiers éléments de la liste triée
         for (int i = 0; i <= classCount/2 && i < sortedEntries.size(); i++) {

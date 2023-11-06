@@ -43,9 +43,9 @@ class ClassB {
     }
 
     public void anotherMethod() {
-        System.out.println("ClassB's another method is called.");
-        ClassD classD = new ClassD();
-        classD.methodD();
+        System.out.println("ClassC's another method is called.");
+        ClassA classA = new ClassA();
+        classA.anotherMethod();
     }
 }
 
@@ -55,7 +55,7 @@ class ClassC {
         ClassD classD = new ClassD();
         classD.methodD();
     }
-
+    
     public void anotherMethod() {
         System.out.println("ClassC's another method is called.");
         ClassA classA = new ClassA();
@@ -71,8 +71,8 @@ class ClassD {
     }
 
     public void anotherMethod() {
-        System.out.println("ClassD's another method is called.");
-        ClassB classB = new ClassB();
-        classB.anotherMethod();
+        System.out.println("ClassC's another method is called.");
+        ClassA classA = new ClassA();
+        classA.anotherMethod();
     }
 }
