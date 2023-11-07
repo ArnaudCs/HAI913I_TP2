@@ -34,6 +34,7 @@ public class CodeAnalyzer {
         // Create a data structure to store the call graph
         Map<String, Map<String, List<String>>> callGraph = new HashMap<>();
         newCallGraph = new HashMap<String, Map<String, Map<String, String>>>();
+        clusterOrderTree = new HashMap<List<Double>, List<String>>();
         
 
         // Analyze the model
@@ -208,7 +209,7 @@ public class CodeAnalyzer {
         // Récupérer la liste des classes
         String[] classNames = newCallGraph.keySet().toArray(new String[0]);
         int numClasses = classNames.length;
-
+        
         List<List<String>> clusters = new ArrayList<List<String>>();
         
         // Initialisation : chaque classe est un cluster
@@ -217,7 +218,6 @@ public class CodeAnalyzer {
             initialCluster.add(className);
             clusters.add(initialCluster);
         }
-
         while (clusters.size() > 1) {
             // Trouver les deux clusters les plus couplés
             int cluster1Index = -1;
@@ -239,7 +239,6 @@ public class CodeAnalyzer {
 
             // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
             if (cluster1Index != -1 && cluster2Index != -1) {
-                // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
                 List<String> mergedCluster = mergeClusters(clusters.get(cluster1Index), clusters.get(cluster2Index));
                 clusters.remove(cluster1Index);
                 if (cluster2Index > cluster1Index) {
