@@ -171,7 +171,6 @@ public class CodeAnalyser {
 	                // Compter le nombre d'appels de A à B et de B à A
 	                for (String methodA : classAMethods.keySet()) {
 	                    for (String methodB : classBMethods.keySet()) {
-//	                    	System.out.println(methodA+"-"+methodB);
 	                        if (isCoupled(classAMethods.get(methodA), classNameB)) {
 	                            couplingCount++;
 	                        }
@@ -180,9 +179,6 @@ public class CodeAnalyser {
 	                
 	                totalRelation += couplingCount;
 
-	                //Calculer le couplage relatif
-	                //int totalRelations = classAMethods.size() + classBMethods.size();
-	                //double couplingRatio = (double) couplingCount / totalRelation;
 
 	                couplingMatrix[i][j] = couplingCount;
 	            }
@@ -191,17 +187,13 @@ public class CodeAnalyser {
 	    
 	    System.out.println(totalRelation);
 	    
-	    //float totalCoupling = 0;
 	    
 	    for(int i = 0; i < couplingMatrix.length; i++) {
 	    	for(int j = 0; j < couplingMatrix.length; j++) {
 	    		couplingMatrix[i][j] = couplingMatrix[i][j]/totalRelation;
-	    		//totalCoupling += couplingMatrix[i][j];
 	    	}
 	    }
 	    
-	    //System.out.println(totalCoupling);
-
 	    return couplingMatrix;
 	}
 
@@ -288,7 +280,7 @@ public class CodeAnalyser {
                 for (int j = i + 1; j < clusters.size(); j++) {
                 	//On cherche les clusters les plus couplés pour commencer l'algorithme dendro
                     double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), callGraph);
-                    System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
+//                    System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
                     if (coupling > minCoupling) {
                         minCoupling = coupling;
                         cluster1Index = i;
