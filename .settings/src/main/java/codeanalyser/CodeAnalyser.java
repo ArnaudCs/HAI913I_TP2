@@ -63,7 +63,7 @@ public class CodeAnalyser {
         
         System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.1));
         //System.out.println("\nIdentification de modules avec contraintes (M/2) =========================\n");
-        System.out.println("Applications du projet (Avec CP fourni) : "+ identifyModulesMin(clusterOrderTree, 0.1, couplingMatrix.length));
+        System.out.println("Applications du projet (Avec CP = 0,5) : "+ identifyModulesMin(clusterOrderTree, 0.1, couplingMatrix.length));
 	}
 
 	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {

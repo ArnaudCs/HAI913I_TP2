@@ -1,7 +1,5 @@
-package codeanalyser;
+package spoon;
 
-import java.io.File;import java.text.DecimalFormat;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,140 +9,94 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.IMethodBinding;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
+import spoon.reflect.CtModel;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtExecutableReference;
+import spoon.reflect.visitor.filter.TypeFilter;
 
-public class CodeAnalyser {
-	
-	private static Map<String, Map<String, Map<String, String>>> callGraph;
-	private static String cmd;
-	private static String graphCmd;
-	private static Map<List<Double>, List<String>> clusterOrderTree = new HashMap<List<Double>, List<String>>();		
-    static int totalRelation = 0;
-	
-	public String getCmd() {return cmd;}
-	public String getGraphCmd() {return graphCmd;}
+public class CodeAnalyzer {
+	private static Map<List<Double>, List<String>> clusterOrderTree;
+	private static Map<String, Map<String, Map<String, String>>> newCallGraph;
+	static int totalRelation = 0;
 
-	public static void runAllStats(File folder) {
-		// Récupération des fichiers du projet
-		ArrayList<File> javaFiles = Parser.listJavaFilesForFolder(folder);
+    public static void main(String[] args) {
+        String projectPath = "/home/e20190003865/Bureau/HAI913I_TP2/test_coupling/";
 
-		callGraph = new HashMap<String, Map<String, Map<String, String>>>();
-		
-		// Loop sur chaque fichier
-		for (File fileEntry : javaFiles) {
-			String content;
-			try {
-				// Récupération du contenu du fichier et parsing
-				content = FileUtils.readFileToString(fileEntry);
-				CompilationUnit parse = Parser.parse(content.toCharArray());
-				
-				callGraph.putAll(buildCallGraph(parse));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		
-		displayCallGraph(callGraph);
-		
-		double[][] couplingMatrix = calculateCoupling(callGraph);
-		displayCouplingMatrix(couplingMatrix, callGraph.keySet());
-		
-		
-        double[][] weightedGraph = calculateWeightedGraph(couplingMatrix);
+        // Create a Spoon launcher
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setComplianceLevel(8);
+        launcher.addInputResource(projectPath);
+
+        // Build the model
+        CtModel model = launcher.buildModel();
+
+        // Create a data structure to store the call graph
+        Map<String, Map<String, List<String>>> callGraph = new HashMap<>();
+        newCallGraph = new HashMap<String, Map<String, Map<String, String>>>();
+        clusterOrderTree = new HashMap<List<Double>, List<String>>();
         
-        List<List<String>> clusters = hierarchicalClustering(callGraph);
+
+        // Analyze the model
+        for (CtType<?> ctClass : model.getAllTypes()) {
+            Map<String, List<String>> methodCalls = new HashMap<>();
+            for (CtMethod<?> method : ctClass.getMethods()) {
+                List<CtExecutableReference<?>> calls = method.getElements(new CallFilter());
+                List<String> calledMethods = new ArrayList<>();
+                for (CtExecutableReference<?> call : calls) {
+                    String declaringClass = call.getDeclaringType().getQualifiedName();
+                    String calledMethod = call.getSimpleName();
+                    if (!declaringClass.startsWith("java")) {
+                        calledMethods.add(declaringClass + "." + calledMethod);
+                    }
+                }
+                methodCalls.put(method.getSimpleName(), calledMethods);
+            }
+            callGraph.put(ctClass.getQualifiedName(), methodCalls);
+        }
+
+        // Print the call graph
+        for (Map.Entry<String, Map<String, List<String>>> entry : callGraph.entrySet()) {
+            String className = entry.getKey();
+            Map<String, List<String>> methodCalls = entry.getValue();
+            System.out.println("Class: " + className);
+            for (Map.Entry<String, List<String>> methodEntry : methodCalls.entrySet()) {
+                String methodName = methodEntry.getKey();
+                List<String> calledMethods = methodEntry.getValue();
+                System.out.println("  Method: " + methodName);
+                for (String calledMethod : calledMethods) {
+                    System.out.println("    Calls: " + calledMethod);
+                }
+            }
+        }
+        
+        
+        newCallGraph = transformCallGraph(callGraph);
+        System.out.println("GRAPHE: "+ newCallGraph);
+        double[][] couplingMatrix = calculateCoupling(newCallGraph);
+		displayCouplingMatrix(couplingMatrix, newCallGraph.keySet());
+		
+		List<List<String>> clusters = hierarchicalClustering(newCallGraph);
         System.out.println("Ordre de clustering : " + clusterOrderTree);
         
         System.out.println("Applications du projet : "+ identifyModules(clusterOrderTree, 0.1));
         //System.out.println("\nIdentification de modules avec contraintes (M/2) =========================\n");
-        System.out.println("Applications du projet (Avec CP fourni) : "+ identifyModulesMin(clusterOrderTree, 0.1, couplingMatrix.length));
-	}
+        System.out.println("Applications du projet (Avec CP = 0,5) : "+ identifyModulesMin(clusterOrderTree, 0.1, couplingMatrix.length));
+    }
 
-	public static void displayCallGraph(Map<String, Map<String, Map<String, String>>> callGraph) {
-	    System.out.println("Graphe d'appels (sans méthodes provenants de Java):");
-	    graphCmd += "==========================" + "\n";
-	    graphCmd += "|      Graphe d'appel      |" + "\n";
-	    graphCmd += "==========================" + "\n";
-	    
+    // Custom filter to identify method calls
+    static class CallFilter extends TypeFilter<CtExecutableReference<?>> {
+        CallFilter() {
+            super(CtExecutableReference.class);
+        }
 
-	    for (Map.Entry<String, Map<String, Map<String, String>>> classEntry : callGraph.entrySet()) {
-	        String className = classEntry.getKey();
-	        Map<String, Map<String, String>> methodCalls = classEntry.getValue();
-
-	        System.out.println("Classe: " + className);
-	        graphCmd += "Classe: " + className + "\n";
-
-	        for (Map.Entry<String, Map<String, String>> methodEntry : methodCalls.entrySet()) {
-	            String methodName = methodEntry.getKey();
-	            Map<String, String> calledMethods = methodEntry.getValue();
-
-	            System.out.println("-> Méthode: " + methodName);
-	            graphCmd += "-> Méthode: " + methodName + "\n";
-
-	            if (!calledMethods.isEmpty()) {
-	                System.out.println("   Appelle:");
-	                graphCmd += "   Appelle:" + "\n";
-	                for (Map.Entry<String, String> calledMethodEntry : calledMethods.entrySet()) {
-	                    String calledMethodName = calledMethodEntry.getKey();
-	                    String declaringClass = calledMethodEntry.getValue();
-
-	                    System.out.println("   -> " + calledMethodName + "  ->  " + declaringClass);
-	                    graphCmd += "   -> " + calledMethodName + "  ->  " + declaringClass + "\n";
-	                }
-	            } else {
-	                System.out.println("   Pas d'appel.");
-	                graphCmd += "   Pas d'appel." + "\n";
-	            }
-	        }
-	    }
-	    
-	}
-
-	public static Map<String, Map<String, Map<String, String>>> buildCallGraph(CompilationUnit parse) {
-	    ClassDeclarationVisitor classVisitor = new ClassDeclarationVisitor();
-	    parse.accept(classVisitor);
-
-	    Map<String, Map<String, Map<String, String>>> callGraph = new HashMap<String, Map<String, Map<String, String>>>();
-
-	    for (TypeDeclaration classDeclaration : classVisitor.getClasses()) {
-	        String className = classDeclaration.getName().getIdentifier();
-	        Map<String, Map<String, String>> methodCalls = new HashMap<String, Map<String, String>>();
-
-	        MethodDeclarationVisitor methodVisitor = new MethodDeclarationVisitor();
-	        classDeclaration.accept(methodVisitor);
-
-	        for (MethodDeclaration methodDeclaration : methodVisitor.getMethods()) {
-	            String methodName = methodDeclaration.getName().getIdentifier();
-	            Map<String, String> calledMethods = new HashMap<String, String>();
-
-	            MethodInvocationVisitor invocationVisitor = new MethodInvocationVisitor();
-	            methodDeclaration.accept(invocationVisitor);
-
-	            for (MethodInvocation methodInvocation : invocationVisitor.getMethods()) {
-	                String invokedMethodName = methodInvocation.getName().getIdentifier();
-	                IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-	                
-	                if (methodBinding != null) {
-	                    String declaringClassName = methodBinding.getDeclaringClass().getName();
-	                    calledMethods.put(invokedMethodName, declaringClassName);
-	                }
-	            }
-
-	            methodCalls.put(methodName, calledMethods);
-	        }
-
-	        callGraph.put(className, methodCalls);
-	    }
-
-	    return callGraph;
-	}
-	
+        @Override
+        public boolean matches(CtExecutableReference<?> reference) {
+            return !reference.isStatic() && reference.getDeclaringType() != null;
+        }
+    }
+    
+    
 	public static double[][] calculateCoupling(Map<String, Map<String, Map<String, String>>> callGraph) {
 	    // Récupérer la liste des classes
 	    String[] classNames = callGraph.keySet().toArray(new String[0]);
@@ -209,9 +161,6 @@ public class CodeAnalyser {
 	
 	public static void displayCouplingMatrix(double[][] couplingMatrix, Set<String> classNamesSet) {
 		System.out.println("\nTableau de couplage (sans méthodes provenants de Java):");
-	    graphCmd += "==========================" + "\n";
-	    graphCmd += "|   Tableau de couplage  |" + "\n";
-	    graphCmd += "==========================" + "\n";
 	    int numClasses = classNamesSet.size();
 	    String[] classNames = classNamesSet.toArray(new String[classNamesSet.size()]);
 	    // Print the header row with class names
@@ -256,11 +205,11 @@ public class CodeAnalyser {
     
     //Clustering dendro
     
-    public static List<List<String>> hierarchicalClustering(Map<String, Map<String, Map<String, String>>> callGraph) {
+    public static List<List<String>> hierarchicalClustering(Map<String, Map<String, Map<String, String>>> newCallGraph) {
         // Récupérer la liste des classes
-        String[] classNames = callGraph.keySet().toArray(new String[0]);
+        String[] classNames = newCallGraph.keySet().toArray(new String[0]);
         int numClasses = classNames.length;
-
+        
         List<List<String>> clusters = new ArrayList<List<String>>();
         
         // Initialisation : chaque classe est un cluster
@@ -269,7 +218,6 @@ public class CodeAnalyser {
             initialCluster.add(className);
             clusters.add(initialCluster);
         }
-
         while (clusters.size() > 1) {
             // Trouver les deux clusters les plus couplés
             int cluster1Index = -1;
@@ -279,7 +227,7 @@ public class CodeAnalyser {
             for (int i = 0; i < clusters.size(); i++) {
                 for (int j = i + 1; j < clusters.size(); j++) {
                 	//On cherche les clusters les plus couplés pour commencer l'algorithme dendro
-                    double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), callGraph);
+                    double coupling = calculateAverageCoupling(clusters.get(i), clusters.get(j), newCallGraph);
 //                    System.out.println("Coupling average de : " + clusters.get(i) + " et " + clusters.get(j) + " est de : " + coupling);
                     if (coupling > minCoupling) {
                         minCoupling = coupling;
@@ -291,7 +239,6 @@ public class CodeAnalyser {
 
             // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
             if (cluster1Index != -1 && cluster2Index != -1) {
-                // Fusionner les deux clusters en un nouveau cluster (ligne C3 = cluster(C1, C2);
                 List<String> mergedCluster = mergeClusters(clusters.get(cluster1Index), clusters.get(cluster2Index));
                 clusters.remove(cluster1Index);
                 if (cluster2Index > cluster1Index) {
@@ -318,15 +265,15 @@ public class CodeAnalyser {
         return mergedCluster;
     }
     
-    public static double calculateAverageCoupling(List<String> cluster1, List<String> cluster2, Map<String, Map<String, Map<String, String>>> callGraph) {
+    public static double calculateAverageCoupling(List<String> cluster1, List<String> cluster2, Map<String, Map<String, Map<String, String>>> newCallGraph) {
         int totalCouplingCount = 0;
         int totalRelationsCount = 0;
         int totalRelations = 0;
         for (String className1 : cluster1) {
             for (String className2 : cluster2) {
                 if (!className1.equals(className2)) {
-                    Map<String, Map<String, String>> class1Methods = callGraph.get(className1);
-                    Map<String, Map<String, String>> class2Methods = callGraph.get(className2);
+                    Map<String, Map<String, String>> class1Methods = newCallGraph.get(className1);
+                    Map<String, Map<String, String>> class2Methods = newCallGraph.get(className2);
                     int couplingCount = 0;
                     // Compter le nombre d'appels de A à B et de B à A
                     for (String methodA : class1Methods.keySet()) {
@@ -381,5 +328,40 @@ public class CodeAnalyser {
 
         return applications;
     }
+    
+    public static Map<String, Map<String, Map<String, String>>> transformCallGraph(Map<String, Map<String, List<String>>> actualCallGraph) {
+    	Map<String, Map<String, Map<String, String>>> fctCallGraph = new HashMap<String, Map<String, Map<String, String>>>();
+    	for (Map.Entry<String, Map<String, List<String>>> classEntry : actualCallGraph.entrySet()) {
+    	    String className = classEntry.getKey().split("\\.")[1];
+    	    Map<String, List<String>> methodCalls = classEntry.getValue();
+    	    // Create a new map for the class's methods and their calls
+    	    Map<String, Map<String, String>> classMethods = new HashMap<>();
+
+    	    // Iterate through the methods and their calls
+    	    for (Map.Entry<String, List<String>> methodEntry : methodCalls.entrySet()) {
+    	        String methodName = methodEntry.getKey();
+    	        List<String> calledMethods = methodEntry.getValue();
+    	        // Create a new map for the method's calls
+    	        Map<String, String> methodCallsMap = new HashMap<>();
+
+    	        // Split the original format ("declaringClass.calledMethod") into class and method
+    	        for (String calledMethod : calledMethods) {
+    	            String[] parts = calledMethod.split("\\.");
+    	            
+    	            if (parts.length == 3) {
+    	                String declaringClass = parts[1];
+    	                String calledMethodName = parts[2];
+    	                methodCallsMap.put(calledMethodName, declaringClass);
+    	            }
+    	        }
+
+    	        classMethods.put(methodName, methodCallsMap);
+    	    }
+
+    	    fctCallGraph.put(className, classMethods);
+    	}
+    	return fctCallGraph;
+    }
 }
+
 
