@@ -48,7 +48,11 @@ public class CodeAnalyser {
 				e.printStackTrace();
 			}
 		}
-		
+
+        
+        System.out.println("-------------------------");
+        System.out.println("Exécution Sans Spoon");
+        System.out.println("-------------------------\n");
 		
 		displayCallGraph(callGraph);
 		
@@ -183,10 +187,7 @@ public class CodeAnalyser {
 	                couplingMatrix[i][j] = couplingCount;
 	            }
 	        }
-	    }
-	    
-	    System.out.println(totalRelation);
-	    
+	    }	    
 	    
 	    for(int i = 0; i < couplingMatrix.length; i++) {
 	    	for(int j = 0; j < couplingMatrix.length; j++) {

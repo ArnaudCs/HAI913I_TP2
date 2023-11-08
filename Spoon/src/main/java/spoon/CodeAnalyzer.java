@@ -21,7 +21,8 @@ public class CodeAnalyzer {
 	static int totalRelation = 0;
 
     public static void main(String[] args) {
-        String projectPath = "/home/e20190003865/Bureau/HAI913I_TP2/test_coupling/";
+        //String projectPath = "/home/e20190003865/Bureau/HAI913I_TP2/test_coupling/";
+        String projectPath = "C:\\Users\\arnau\\Desktop\\HAI913I_TP2\\test_coupling";
 
         // Create a Spoon launcher
         Launcher launcher = new Launcher();
@@ -70,7 +71,10 @@ public class CodeAnalyzer {
             }
         }
         
-        
+        System.out.println("-------------------------");
+        System.out.println("Exécution Avec Spoon");
+        System.out.println("-------------------------\n");
+
         newCallGraph = transformCallGraph(callGraph);
         System.out.println("GRAPHE: "+ newCallGraph);
         double[][] couplingMatrix = calculateCoupling(newCallGraph);
@@ -135,10 +139,7 @@ public class CodeAnalyzer {
 	                couplingMatrix[i][j] = couplingCount;
 	            }
 	        }
-	    }
-	    
-	    System.out.println(totalRelation);
-	    
+	    }	    
 	    
 	    for(int i = 0; i < couplingMatrix.length; i++) {
 	    	for(int j = 0; j < couplingMatrix.length; j++) {
